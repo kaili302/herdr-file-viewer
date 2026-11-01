@@ -166,9 +166,44 @@ pub(crate) fn sanitize_control(s: &str) -> String {
     s.chars().filter(|c| !c.is_control()).collect()
 }
 
+/// Make a copied path safe to paste into a shell (kaili302 fork patch). A path made only of
+/// plain path characters stays as it is. Anything else, such as a space, `$(...)`, a backtick,
+/// `;`, a quote or any non-ASCII character, is wrapped in single quotes, with each `'` written
+/// as `'\''`. So a file name crafted in a stranger's repo pastes as one literal word that the
+/// shell never runs. Expects `sanitize_control`'s output: no control characters.
+pub(crate) fn shell_quote(s: &str) -> String {
+    let plain = !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || "/._-+@%:,=".contains(c));
+    if plain {
+        s.to_owned()
+    } else {
+        format!("'{}'", s.replace('\'', "'\\''"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{sanitize_control, wrap_row_starts, wrapped_rows};
+    use super::{sanitize_control, shell_quote, wrap_row_starts, wrapped_rows};
+
+    #[test]
+    fn shell_quote_keeps_plain_paths_and_quotes_the_rest() {
+        assert_eq!(shell_quote("src/app.rs"), "src/app.rs");
+        assert_eq!(
+            shell_quote("/tmp/a-b_c.d+e@f%g:h,i=j"),
+            "/tmp/a-b_c.d+e@f%g:h,i=j"
+        );
+        assert_eq!(shell_quote("my file.rs"), "'my file.rs'");
+        assert_eq!(shell_quote("$(rm -rf ~)"), "'$(rm -rf ~)'");
+        assert_eq!(shell_quote("`id`.md"), "'`id`.md'");
+        assert_eq!(shell_quote("a;b&&c|d>e"), "'a;b&&c|d>e'");
+        assert_eq!(shell_quote("it's"), "'it'\\''s'");
+        assert_eq!(
+            shell_quote("caf\u{e9}\u{202e}.md"),
+            "'caf\u{e9}\u{202e}.md'"
+        );
+        assert_eq!(shell_quote(""), "''");
+    }
 
     #[test]
     fn sanitize_control_strips_control_bytes_keeps_printable() {

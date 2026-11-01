@@ -841,11 +841,16 @@ fn pinned_capital_y_copies_a_sanitized_captured_absolute_path_after_root_removal
     let hostile_name = "pin\u{1b}[2J\u{7}\n.rs";
     let original_file = original_root.path().join(hostile_name);
     std::fs::write(&original_file, "original\n").unwrap();
-    let expected = original_file
-        .to_string_lossy()
-        .chars()
-        .filter(|ch| !ch.is_control())
-        .collect::<String>();
+    // Control characters stripped, then quoted for a shell: `[` isn't a plain path character
+    // (kaili302 fork patch).
+    let expected = format!(
+        "'{}'",
+        original_file
+            .to_string_lossy()
+            .chars()
+            .filter(|ch| !ch.is_control())
+            .collect::<String>()
+    );
     let new_root = TempDir::new();
     std::fs::write(new_root.path().join("current.rs"), "current\n").unwrap();
     let (mut ctrl, copied) = controller_with_recording_clipboard(original_root.path());

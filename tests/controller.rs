@@ -4588,8 +4588,9 @@ fn copy_path_strips_control_bytes_from_a_hostile_filename() {
     let log = copied.lock().unwrap();
     assert_eq!(log.len(), 1, "exactly one copy");
     assert_eq!(
-        log[0], "a]52;c;evilrm -rf b",
-        "control bytes (ESC/BEL/newline) are stripped, printable chars kept"
+        log[0], "'a]52;c;evilrm -rf b'",
+        "control bytes (ESC/BEL/newline) are stripped, and the rest is quoted for a shell \
+         (kaili302 fork patch)"
     );
     assert!(
         !log[0].chars().any(|c| c.is_control()),

@@ -3131,7 +3131,10 @@ impl Controller {
         // filesystem-derived string it displays. (The OSC 52 payload is base64-encoded only for
         // transport; the terminal decodes it back to this exact string onto the clipboard, so the
         // encoding alone does not make a control-bearing path safe to paste.)
-        let text = crate::text_layout::sanitize_control(&raw);
+        //
+        // Then quote it for a shell (kaili302 fork patch): printable shell syntax such as `$(...)`
+        // survives the line above, and the copy is meant to be pasted into a command.
+        let text = crate::text_layout::shell_quote(&crate::text_layout::sanitize_control(&raw));
         self.action_notice = Some(match self.clipboard.copy(&text) {
             Ok(()) => format!("Copied {text}"),
             Err(e) => format!("Could not copy path: {e}"),
